@@ -6,8 +6,9 @@ import plotly.express as px
 
 
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-DB_PATH = BASE_DIR / "MLBDashboard.db"
+BASE_DIR = Path(__file__).resolve().parents[2]
+
+DB_PATH = BASE_DIR / "db" / "MLBDashboard.db"
 
 def get_connection():
     return sqlite3.connect(DB_PATH)
