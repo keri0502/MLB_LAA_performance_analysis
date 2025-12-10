@@ -1,7 +1,7 @@
 from dash import Dash, dcc, html, Input, Output, State, callback
 import plotly.express as px
 
-from graph import plot_contribution_salary_scatter
+from charts import plot_contribution_salary_scatter
 
 
 def contribution_salary_container():
@@ -81,3 +81,4 @@ if __name__ == "__main__":
     app = Dash()
     app.layout = contribution_salary_container()
     app.run(debug=True)
+    

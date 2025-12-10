@@ -3,7 +3,7 @@ from typing import Literal, List
 import plotly.express as px
 import plotly.graph_objects as go
 
-from sql_connector import query
+from db_access import query
 
 
 TEAM_ID = "LAA"

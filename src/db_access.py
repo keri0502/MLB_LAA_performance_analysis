@@ -1,8 +1,11 @@
+from pathlib import Path
 import sqlite3
-
 import pandas as pd
 
-DB_PATH = "./db/MLBDashboard.db"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+DB_PATH = PROJECT_ROOT / "db" / "MLBDashboard.db"
+
 
 
 def query(sql: str) -> pd.DataFrame:
