@@ -11,6 +11,7 @@ from db_access import load_batter_raw, load_pitcher_raw
 # Data Processing Functions                                    #
 #--------------------------------------------------------------#
 
+# 打者指標計算
 def compute_batter_rates(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     # 基本打擊指標計算
@@ -26,6 +27,7 @@ def compute_batter_rates(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
+# 打者 PR 計算
 def add_batter_pr(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     league = df[df["PA"] >= 50].copy()  # 設門檻，避免樣本太小
@@ -41,6 +43,7 @@ def add_batter_pr(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
+# 投手指標計算
 def compute_pitcher_rates(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
@@ -64,6 +67,7 @@ def compute_pitcher_rates(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
+# 投手 PR 計算
 def add_pitcher_pr(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
@@ -89,6 +93,7 @@ TEAM_ID = "LAA"
 # Scatter plot: Salary vs. Player Contribution                 #
 #--------------------------------------------------------------#
 
+# Contribution vs Salary 散布圖
 def plot_contribution_salary_scatter(player_type: Literal["batter", "pitcher"], roles: List[str]) -> go.Figure:
     """
     畫選手貢獻和薪資的散布圖
@@ -171,6 +176,7 @@ def plot_contribution_salary_scatter(player_type: Literal["batter", "pitcher"], 
 # Radar Chart: Batter Group Radar (LAA only)                   #
 #--------------------------------------------------------------#
 
+# 打者群組雷達圖指標
 BATTER_RADAR_METRICS = [
     "AVG_PR",
     "OBP_PR",
@@ -180,6 +186,7 @@ BATTER_RADAR_METRICS = [
     "OPS_plus_PR"
 ]
 
+# 投手群組雷達圖指標
 PITCHER_RADAR_METRICS = [
     "ERA_PR",   # ERA 表現（反向成高分好）
     "fip_PR",   # FIP 表現
@@ -189,6 +196,7 @@ PITCHER_RADAR_METRICS = [
     "H9_PR",    # 被安打抑制
 ]
 
+# 打者群組資料建構
 def build_laa_batter_group_profile(group_code: str) -> pd.Series | None:
     df_raw = load_batter_raw()
     df = compute_batter_rates(df_raw)
@@ -206,6 +214,7 @@ def build_laa_batter_group_profile(group_code: str) -> pd.Series | None:
     profile = df[BATTER_RADAR_METRICS].mean()
     return profile
 
+# 投手群組資料建構
 def build_laa_pitcher_group_profile(group_code: str) -> pd.Series | None:
     """
     回傳洛杉磯天使隊 (TEAM_ID) 某投手群組的 6 個 PR 平均值。
@@ -252,6 +261,7 @@ def build_laa_pitcher_group_profile(group_code: str) -> pd.Series | None:
 
     return profile
 
+# 打者雷達圖
 def plot_laa_batter_radar(group_code: str) -> go.Figure:
     """
     畫出 LAA 在指定打者群組 (group_code) 的雷達圖。
@@ -297,6 +307,7 @@ def plot_laa_batter_radar(group_code: str) -> go.Figure:
 
     return fig
 
+# 投手雷達圖
 def plot_laa_pitcher_radar(group_code: str) -> go.Figure:
     """
     畫出 LAA 在指定投手群組 (group_code) 的雷達圖。
@@ -342,6 +353,8 @@ def plot_laa_pitcher_radar(group_code: str) -> go.Figure:
 #--------------------------------------------------------------#
 # Overview Breakdown Bar Chart                                 #
 #--------------------------------------------------------------#
+
+# Overview breakdown: Team vs League
 def plot_overview_breakdown(team_id: str, group: str) -> go.Figure:
     """
     Overview breakdown: Team vs League
@@ -407,3 +420,157 @@ def plot_overview_breakdown(team_id: str, group: str) -> go.Figure:
     )
 
     return fig
+
+#--------------------------------------------------------------#
+# Page performance                                             #
+#--------------------------------------------------------------#
+
+# Performance page Bar Chart
+def plot_performance_bar(team_id: str, player_type: str, groups: list[str]) -> go.Figure:
+    """
+    Bar chart for Performance page:
+    - batter: compare OPS+ by POS (team vs league)
+    - pitcher: compare FIP- by POS (SP/RP) (team vs league)
+    groups: selected categories from dropdown
+    """
+    fig = go.Figure()
+
+    if player_type == "batter":
+        pos_str = "','".join(groups)
+        df = query(f"""
+            SELECT
+                POS AS category,
+                AVG(`ops+`) AS league_metric,
+                AVG(CASE WHEN teamID = '{team_id}' THEN `ops+` END) AS team_metric
+            FROM batter
+            WHERE POS IN ('{pos_str}')
+            GROUP BY POS
+            ORDER BY category
+        """).dropna(subset=["team_metric"])
+
+        metric_name = "OPS+"
+        x_title = "Position"
+
+    else:
+
+        pos_str = "','".join(groups)
+
+        df = query(f"""
+            SELECT
+                POS AS category,
+                AVG(`fip-`) AS league_metric,
+                AVG(CASE WHEN teamID = '{team_id}' THEN `fip-` END) AS team_metric
+            FROM pitcher
+            WHERE POS IN ('{pos_str}')
+            GROUP BY POS
+            ORDER BY category
+        """).dropna(subset=["team_metric"])
+
+        metric_name = "FIP-"
+        x_title = "Pitcher Role"
+
+    fig.add_bar(x=df["category"], y=df["league_metric"], name="League Average")
+    fig.add_bar(x=df["category"], y=df["team_metric"], name="Team Average")
+
+    fig.update_layout(
+        barmode="group",
+        xaxis_title=x_title,
+        yaxis_title=metric_name,
+        legend_title="",
+        margin=dict(l=40, r=20, t=40, b=40),
+        title=f"{team_id} vs League – {metric_name}",
+    )
+    return fig
+
+#--------------------------------------------------------------#
+# Page functions                                               #
+#--------------------------------------------------------------#
+
+# Performance page 雷達圖入口
+def plot_performance_radar(player_type: str, group_code: str) -> go.Figure:
+    """
+    Performance page 用的統一雷達入口（LAA only）
+    player_type: "batter" / "pitcher"
+    group_code:
+      - batter: "C","1B","2B","3B","SS","OF","DH"
+      - pitcher: "SP","RP"
+    """
+    if player_type == "batter":
+        return plot_laa_batter_radar(group_code)
+
+    if player_type == "pitcher":
+        return plot_laa_pitcher_radar(group_code)
+
+    return go.Figure(layout_title_text=f"Unknown player_type: {player_type}")
+
+# Overview tiles data 入口
+def get_overview_tiles(team_id: str) -> dict:
+    """
+    回傳 Overview tiles 需要的數值（從 DB 計算）：
+    {
+      "SP": {"metric": float, "diff": float},  # diff: 100 - fip-
+      "RP": {"metric": float, "diff": float},
+      "H":  {"metric": float, "diff": float},  # diff: ops+ - 100
+    }
+    """
+    BASELINE = 100
+
+    # SP (pitcher POS = SP), metric = avg(fip-)
+    sp_df = query(f"""
+        SELECT AVG(`fip-`) AS metric
+        FROM pitcher
+        WHERE teamID = '{team_id}' AND POS = 'SP'
+    """)
+    sp_metric = float(sp_df.iloc[0]["metric"]) if not sp_df.empty and sp_df.iloc[0]["metric"] is not None else None
+
+    # RP (pitcher POS = RP), metric = avg(fip-)
+    rp_df = query(f"""
+        SELECT AVG(`fip-`) AS metric
+        FROM pitcher
+        WHERE teamID = '{team_id}' AND POS = 'RP'
+    """)
+    rp_metric = float(rp_df.iloc[0]["metric"]) if not rp_df.empty and rp_df.iloc[0]["metric"] is not None else None
+
+    # H (batters), metric = avg(ops+)
+    h_df = query(f"""
+        SELECT AVG(`ops+`) AS metric
+        FROM batter
+        WHERE teamID = '{team_id}'
+          AND POS IN ('C','1B','2B','3B','SS','OF','DH')
+    """)
+    h_metric = float(h_df.iloc[0]["metric"]) if not h_df.empty and h_df.iloc[0]["metric"] is not None else None
+
+    # diffs (依你的定義)
+    sp_diff = (BASELINE - sp_metric) if sp_metric is not None else None
+    rp_diff = (BASELINE - rp_metric) if rp_metric is not None else None
+    h_diff  = (h_metric - BASELINE) if h_metric is not None else None
+
+    return {
+        "SP": {"metric": sp_metric, "diff": sp_diff},
+        "RP": {"metric": rp_metric, "diff": rp_diff},
+        "H":  {"metric": h_metric, "diff": h_diff},
+    }
+
+# Overview team record 入口
+def get_team_record(team_id: str) -> dict:
+    """
+    從 DB 的 team table 取戰績與排名
+    回傳: {"name": str|None, "W": int|None, "L": int|None, "Rank": int|None}
+    """
+    df = query(f"""
+        SELECT name, W, L, Rank
+        FROM team
+        WHERE teamID = '{team_id}'
+        LIMIT 1
+    """)
+
+    if df.empty:
+        return {"name": None, "W": None, "L": None, "Rank": None}
+
+    row = df.iloc[0]
+    return {
+        "name": row["name"] if "name" in df.columns else None,
+        "W": int(row["W"]) if row["W"] is not None else None,
+        "L": int(row["L"]) if row["L"] is not None else None,
+        "Rank": int(row["Rank"]) if row["Rank"] is not None else None,
+    }
