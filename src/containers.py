@@ -5,8 +5,14 @@ import plotly.graph_objects as go
 from charts import (
     plot_contribution_salary_scatter,
     plot_laa_batter_radar,
-    plot_laa_pitcher_radar
+    plot_laa_pitcher_radar,
+    plot_overview_breakdown,
+    TEAM_ID
 )
+
+#--------------------------------------------------------------#
+# Radar Chart                                                  #
+#--------------------------------------------------------------#
 
 def radar_container():
     """雷達圖區塊：只放圖，不放控制元件。"""
@@ -72,6 +78,10 @@ def update_radar_grid(n_clicks, player_type, sub_type):
         )
 
     return cards
+
+#--------------------------------------------------------------#
+# Contribution vs. Salary Scatter Plot                         #
+#--------------------------------------------------------------#
 
 def contribution_salary_container():
     container = html.Div([
@@ -145,4 +155,55 @@ def update_scatter(n_clicks, player_type, sub_type):
         player_type=player_type,
         roles=sub_type
     )
-    
+
+#--------------------------------------------------------------#
+# Overview Container                                           #
+#--------------------------------------------------------------#
+
+def overview_container():
+    return html.Div(
+        [
+            html.H2("Team Overview – LAA"),
+
+            # tiles placeholder
+            html.Div(
+                [
+                    html.Div(["SP tile"], style={"border": "1px solid #999", "padding": "8px", "width": "90px"}),
+                    html.Div(["RP tile"], style={"border": "1px solid #999", "padding": "8px", "width": "90px"}),
+                    html.Div(["H tile"],  style={"border": "1px solid #999", "padding": "8px", "width": "90px"}),
+                    html.Div(["W/L + Standing"], style={"marginLeft": "40px"}),
+                ],
+                style={"display": "flex", "alignItems": "center", "marginBottom": "20px"},
+            ),
+
+            # dropdown
+            html.Div(
+                [
+                    html.Label("Select group:"),
+                    dcc.Dropdown(
+                        id="overview-group-dropdown",
+                        options=[
+                            {"label": "Starting Pitcher (SP)", "value": "SP"},
+                            {"label": "Relief Pitcher (RP)", "value": "RP"},
+                            {"label": "Hitters (H)", "value": "H"},
+                        ],
+                        value="SP",
+                        clearable=False,
+                        style={"width": "320px"},
+                    ),
+                ],
+                style={"marginBottom": "10px"},
+            ),
+
+            # placeholder graph
+            dcc.Graph(id="overview-breakdown-chart"),
+        ],
+        style={"padding": "20px"},
+    )
+
+@callback(
+    Output("overview-breakdown-chart", "figure"),
+    Input("overview-group-dropdown", "value")
+)
+def overview_breakdown_real(group):
+    return plot_overview_breakdown(team_id=TEAM_ID, group=group)

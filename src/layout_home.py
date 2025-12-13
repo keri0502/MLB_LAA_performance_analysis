@@ -1,7 +1,7 @@
 # src/layout_home.py
 from dash import html
 
-from containers import contribution_salary_container, radar_container
+from containers import contribution_salary_container, radar_container, overview_container
 
 
 layout = html.Div(
@@ -10,8 +10,10 @@ layout = html.Div(
             "MLB Team Weakness Diagnosis Dashboard",
             style={"textAlign": "center"},
         ),
-        html.Hr(),
+        overview_container(),
         
+        html.Hr(),
+
         contribution_salary_container(),
 
         radar_container(),

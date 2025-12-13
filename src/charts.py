@@ -338,3 +338,72 @@ def plot_laa_pitcher_radar(group_code: str) -> go.Figure:
     )
 
     return fig
+
+#--------------------------------------------------------------#
+# Overview Breakdown Bar Chart                                 #
+#--------------------------------------------------------------#
+def plot_overview_breakdown(team_id: str, group: str) -> go.Figure:
+    """
+    Overview breakdown: Team vs League
+    group:
+      - "SP" / "RP" : pitcher, breakdown by throws (R/L), metric = fip-
+      - "H"         : batter, breakdown by POS, metric = ops+
+    """
+
+    if group in ["SP", "RP"]:
+        df = query(f"""
+            SELECT
+                throws AS category,
+                AVG(`fip-`) AS league_metric,
+                AVG(CASE WHEN teamID = '{team_id}' THEN `fip-` END) AS team_metric
+            FROM pitcher
+            WHERE POS = '{group}'
+              AND throws IN ('R','L')
+            GROUP BY throws
+            ORDER BY category
+        """)
+        metric_name = "FIP-"
+        x_title = "Throws"
+
+    else:  # group == "H"
+        hitter_pos = ["1B","2B","3B","SS","OF","C","DH"]
+        pos_str = "','".join(hitter_pos)
+
+        df = query(f"""
+            SELECT
+                POS AS category,
+                AVG(`ops+`) AS league_metric,
+                AVG(CASE WHEN teamID = '{team_id}' THEN `ops+` END) AS team_metric
+            FROM batter
+            WHERE POS IN ('{pos_str}')
+            GROUP BY POS
+            ORDER BY category
+        """)
+        metric_name = "OPS+"
+        x_title = "Position"
+
+    # 本隊沒有資料的類別會是 NULL，先排除
+    df = df.dropna(subset=["team_metric"])
+
+    fig = go.Figure()
+    fig.add_bar(
+        x=df["category"],
+        y=df["league_metric"],
+        name="League Average"
+    )
+    fig.add_bar(
+        x=df["category"],
+        y=df["team_metric"],
+        name="Team Average"
+    )
+
+    fig.update_layout(
+        barmode="group",
+        xaxis_title=x_title,
+        yaxis_title=metric_name,
+        legend_title="",
+        margin=dict(l=40, r=20, t=40, b=40),
+        title=f"{team_id} vs League – {group}",
+    )
+
+    return fig
