@@ -15,28 +15,63 @@ def radar_container():
             "Team Radar (PR values)",
             style={"textAlign": "center"}
         ),
-        dcc.Graph(id="player-radar-graph"),
+        html.Div(
+            id="radar-grid",
+            style={
+                "display": "grid",
+                "gridTemplateColumns": "repeat(3, minmax(0, 1fr))",
+                "gap": "16px",
+                "alignItems": "start",
+            }
+        )
     ])
 
 @callback(
-    Output("player-radar-graph", "figure"),
+    Output("radar-grid", "children"),
     Input("apply-button", "n_clicks"),
     State("player-type-radio", "value"),
     State("sub-type-dropdown", "value"),
 )
-def update_radar(n_clicks, player_type, sub_type):
+def update_radar_grid(n_clicks, player_type, sub_type):
     if n_clicks == 0 or not sub_type:
-        return go.Figure()
+        return []
 
-    
-    group_value = sub_type[0] if isinstance(sub_type, list) else sub_type
+    # sub_type 因為 multi=True，會是 list
+    selected = sub_type if isinstance(sub_type, list) else [sub_type]
 
-    if player_type == "batter":
-        
-        return plot_laa_batter_radar(group_code=group_value)
+    cards = []
+    for group_value in selected:
+        if player_type == "batter":
+            fig = plot_laa_batter_radar(group_code=group_value)
+            title = f"{group_value} Radar"
+        else:
+            group_code = group_value.replace(" ", "_")
+            fig = plot_laa_pitcher_radar(group_code=group_code)
+            title = f"{group_value} Radar"
 
-    group_code = group_value.replace(" ", "_")
-    return plot_laa_pitcher_radar(group_code=group_code)
+        fig.update_layout(height=320, margin=dict(l=40, r=40, t=50, b=40))
+
+        cards.append(
+            html.Div(
+                [
+                    html.H4(title, style={"textAlign": "center", "margin": "8px 0"}),
+                    dcc.Graph(
+                        figure=fig,
+                        config={"displayModeBar": False},
+                        style={"height": "320px"},
+                    ),
+                ],
+                style={
+                    "border": "1px solid #ddd",
+                    "borderRadius": "12px",
+                    "padding": "8px",
+                    "backgroundColor": "white",
+                    "overflow": "hidden",
+                },
+            )
+        )
+
+    return cards
 
 def contribution_salary_container():
     container = html.Div([
