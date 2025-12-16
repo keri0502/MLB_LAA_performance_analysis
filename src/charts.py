@@ -365,8 +365,7 @@ def plot_laa_batter_radar(group_code: str) -> go.Figure:
                 range = [0, 100]
             )
         ),
-        showlegend = True,
-        title = f"{TEAM_ID} {group_code} - Batter Radar (PR Scores)"
+        showlegend = False,
     )
 
     return fig
@@ -408,8 +407,7 @@ def plot_laa_pitcher_radar(group_code: str) -> go.Figure:
                 range=[0, 100],  # PR 值 0~100
             )
         ),
-        showlegend=True,
-        title=f"{TEAM_ID} {group_code} – Pitcher Radar (PR values)",
+        showlegend=False,
     )
 
     return fig
@@ -443,7 +441,6 @@ def plot_laa_hitter_team_radar() -> go.Figure:
     fig.update_layout(
         polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
         showlegend=False,
-        title=f"{TEAM_ID} Hitters – Radar (PR values)"
     )
     return fig
 #--------------------------------------------------------------#
@@ -548,22 +545,21 @@ def plot_performance_bar(team_id: str, player_type: str, groups: list[str]) -> g
         x_title = "Position"
 
     else:
-
-        pos_str = "','".join(groups)
+        roles_str = "','".join(groups)  # groups 會是 ["SP R","SP L","RP R","RP L"]
 
         df = query(f"""
             SELECT
-                POS AS category,
+                (POS || ' ' || throws) AS category,
                 AVG(`fip-`) AS league_metric,
                 AVG(CASE WHEN teamID = '{team_id}' THEN `fip-` END) AS team_metric
             FROM pitcher
-            WHERE POS IN ('{pos_str}')
-            GROUP BY POS
+            WHERE (POS || ' ' || throws) IN ('{roles_str}')
+            GROUP BY (POS || ' ' || throws)
             ORDER BY category
         """).dropna(subset=["team_metric"])
 
         metric_name = "FIP-"
-        x_title = "Pitcher Role"
+        x_title = "Role / Throws"
 
     fig.add_bar(x=df["category"], y=df["league_metric"], name="League Average")
     fig.add_bar(x=df["category"], y=df["team_metric"], name="Team Average")

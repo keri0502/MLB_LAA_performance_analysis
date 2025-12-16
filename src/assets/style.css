@@ -1,0 +1,39 @@
+/* page background (matches your Figma light gray) */
+.page-bg {
+  background: #F3F5F7;
+  min-height: 100vh;
+}
+
+/* reusable card */
+.card {
+  background: #fff;
+  border: 1px solid #E6E8EB;
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+  overflow: hidden;
+}
+
+.card-title {
+  padding: 14px 16px;
+  font-weight: 800;
+  font-size: 16px;
+  color: #0B2D5C;
+  border-bottom: 1px solid #EEF0F2;
+}
+
+.card-body {
+  padding: 8px 12px 14px 12px;
+}
+
+/* radar section layout */
+.radar-grid {
+  margin-top: 26px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(320px, 1fr));
+  gap: 18px;
+}
+
+/* optional: make radar cards feel consistent */
+.radar-card .card-body {
+  padding: 6px 10px 12px 10px;
+}

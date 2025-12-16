@@ -109,9 +109,10 @@ def contribution_salary_container():
             id="sub-type-dropdown",
             value=None,
             placeholder="please choose",
-            multi=True
+            multi=True,
+            style={"width": "420px", "marginLeft": "12px"}
         ),
-        html.Button("Apply", id="apply-button", n_clicks=0),
+        html.Button("Apply", id="apply-button", n_clicks=0, style={"marginLeft": "12px"}),
         # 取得 scatter plot，根據 checkbox 跟 dropdown 所選的值而變化
         html.H2(
             "Salary vs. Player Contribution",
@@ -336,16 +337,23 @@ def overview_container():
             # 下排：三張 radar（Step 2 會補）
             html.Div(
                 [
-                    dcc.Graph(figure=sp_radar, config={"displayModeBar": False}),
-                    dcc.Graph(figure=rp_radar, config={"displayModeBar": False}),
-                    dcc.Graph(figure=h_radar,  config={"displayModeBar": False}),
-                ],
-                style={
-                    "marginTop": "26px",
-                    "display": "grid",
-                    "gridTemplateColumns": "repeat(3, minmax(320px, 1fr))",
-                    "gap": "18px",
-                },
+                card(
+                    dcc.Graph(figure=sp_radar, config={"displayModeBar": False}, style={"height": "360px"}),
+                    title="LAA SP — Pitcher Radar (PR values)",
+                    className="radar-card",
+                ),
+                card(
+                    dcc.Graph(figure=rp_radar, config={"displayModeBar": False}, style={"height": "360px"}),
+                    title="LAA RP — Pitcher Radar (PR values)",
+                    className="radar-card",
+                ),
+                card(
+                    dcc.Graph(figure=h_radar, config={"displayModeBar": False}, style={"height": "360px"}),
+                    title="LAA Hitters — Radar (PR values)",
+                    className="radar-card",
+                ),
+            ],
+            className="radar-grid",
             )
         ],
         style={"padding": "20px", "backgroundColor": "#F3F5F7", "minHeight": "100vh"},
@@ -432,6 +440,53 @@ def overview_conclusion(tiles: dict) -> str:
 # Layout Pages                                                 #
 #--------------------------------------------------------------#
 
+def card(children, title: str | None = None, className: str = ""):
+    return html.Div(
+        [
+            html.Div(title, className="card-title") if title else None,
+            html.Div(children, className="card-body"),
+        ],
+        className=f"card {className}".strip(),
+    )
+
+def filter_bar(radio_id: str, dropdown_id: str, button_id: str, default_player_type: str = "batter"):
+    """
+    共用的篩選列：RadioItems + Dropdown + Apply（同一行）
+    - 選項內容由 callback 決定（你要用 Contribution 的那套）
+    """
+    return html.Div(
+        [
+            dcc.RadioItems(
+                id=radio_id,
+                options=[
+                    {"label": "batter", "value": "batter"},
+                    {"label": "pitcher", "value": "pitcher"},
+                ],
+                value=default_player_type,
+                inline=True,
+            ),
+            dcc.Dropdown(
+                id=dropdown_id,
+                value=None,
+                placeholder="please choose",
+                multi=True,
+                style={"width": "420px"},
+            ),
+            html.Button(
+                "Apply",
+                id=button_id,
+                n_clicks=0,
+                style={"height": "24px"},
+            ),
+        ],
+        style={
+            "display": "flex",
+            "alignItems": "center",
+            "gap": "12px",
+            "marginBottom": "12px",
+        },
+    )
+
 # Layout: Overview Page
 def page_overview():
     return html.Div(
@@ -446,30 +501,14 @@ def page_performance():
     return html.Div(
         [
             html.H2("Performance"),
-            html.Div(
-                [
-                    dcc.RadioItems(
-                        id="perf-player-type-radio",
-                        options=[
-                            {"label": "Batter", "value": "batter"},
-                            {"label": "Pitcher", "value": "pitcher"},
-                        ],
-                        value="batter",
-                        inline=True,
-                    ),
-                    dcc.Dropdown(
-                        id="perf-subtype-dropdown",
-                        value=None,
-                        placeholder="Please choose",
-                        multi=True,
-                        style={"width": "420px", "marginLeft": "12px"},
-                    ),
-                    html.Button("Apply", id="perf-apply-button", n_clicks=0, style={"marginLeft": "12px"}),
-                ],
-                style={"display": "flex", "alignItems": "center", "gap": "8px", "marginBottom": "12px"},
+
+            filter_bar(
+                radio_id="perf-player-type-radio",
+                dropdown_id="perf-subtype-dropdown",
+                button_id="perf-apply-button",
+                default_player_type="batter",
             ),
 
-            # Charts zone
             html.Div(
                 [
                     dcc.Graph(id="perf-bar-chart"),
@@ -505,8 +544,10 @@ def perf_update_dropdown(player_type):
         ]
     else:
         options = [
-            {"label": "Starter (SP)", "value": "SP"},
-            {"label": "Reliever (RP)", "value": "RP"}
+            {"label": "SP R", "value": "SP R"},
+            {"label": "SP L", "value": "SP L"},
+            {"label": "RP R", "value": "RP R"},
+            {"label": "RP L", "value": "RP L"},
         ]
 
     return options, None
@@ -522,20 +563,30 @@ def perf_update_dropdown(player_type):
 def perf_update_charts(n_clicks, player_type, sub_types):
     if n_clicks == 0 or not sub_types:
         return px.bar(), []
+    
+    bar_groups = sub_types
+    radar_groups = sub_types
+
+    if player_type == "pitcher":
+        # for bar: only POS matters
+        bar_groups = sub_types
+        # for radar: needs underscore code
+        radar_groups = [s.replace(" ", "_") for s in sub_types]        # -> ["SP_R","RP_L"]
 
     # 1) Bar chart：team vs league
-    fig_bar = plot_performance_bar(team_id=TEAM_ID, player_type=player_type, groups=sub_types)
+    fig_bar = plot_performance_bar(team_id=TEAM_ID, player_type=player_type, groups=bar_groups)
 
     # 2) Radar charts：多選 → 多張雷達圖
     radar_cards = []
-    for g in sub_types:
+    for g in radar_groups:
         fig_radar = plot_performance_radar(player_type=player_type, group_code=g)
         radar_cards.append(
-            html.Div(
-                [
-                    dcc.Graph(figure=fig_radar, config={"displayModeBar": False}),
-                ],
-                style={"border": "1px solid #ddd", "borderRadius": "10px", "padding": "8px"},
+            card(
+                dcc.Graph(
+                    figure=fig_radar,
+                    config={"displayModeBar": False}
+                ),
+                title=f"{TEAM_ID} {g} – Radar (PR values)",
             )
         )
 
@@ -555,7 +606,13 @@ def page_contribution():
     return html.Div(
         [
             html.H2("Contribution"),
-            contribution_salary_container(),
+            filter_bar(
+                radio_id="player-type-radio",
+                dropdown_id="sub-type-dropdown",
+                button_id="apply-button",
+                default_player_type="batter",
+            ),
+            dcc.Graph(id="player-scatter-graph"),
         ],
         style={"padding": "16px"},
     )
