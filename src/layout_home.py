@@ -2,6 +2,7 @@
 from dash import dcc, html, Input, Output, callback
 
 from .containers import (
+    contribution_salary_container,
     page_overview, 
     page_performance,
     page_contribution

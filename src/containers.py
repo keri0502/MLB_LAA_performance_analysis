@@ -606,13 +606,38 @@ def page_contribution():
     return html.Div(
         [
             html.H2("Contribution"),
+
+            # 同一套 filter bar（你現在想共用的）
             filter_bar(
                 radio_id="player-type-radio",
                 dropdown_id="sub-type-dropdown",
                 button_id="apply-button",
                 default_player_type="batter",
             ),
+
             dcc.Graph(id="player-scatter-graph"),
+
+            # ✅ 把這段放回來（就是你說 Heroku 上不見的）
+            dcc.Dropdown(
+                id="action-dropdown",
+                options=[
+                    {"label": "Retain", "value": "retain"},
+                    {"label": "Trade", "value": "trade"},
+                    {"label": "Extend", "value": "extend"},
+                    {"label": "Option", "value": "option"},
+                ],
+                value="retain",
+                placeholder="please choose",
+                style={"width": "320px", "marginTop": "12px"},
+            ),
+            dash_table.DataTable(
+                id="player-list",
+                data=[],
+                page_size=10,
+                sort_action="native",
+                style_cell={"fontSize": "16px"},
+                style_table={"marginTop": "10px"},
+            ),
         ],
         style={"padding": "16px"},
     )
