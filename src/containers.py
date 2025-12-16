@@ -1,7 +1,7 @@
 from dash import dcc, html, Input, Output, State, callback, dash_table
 import plotly.express as px
 
-from charts import (
+from .charts import (
     plot_contribution_salary_scatter,
     plot_laa_batter_radar,
     plot_laa_hitter_team_radar,

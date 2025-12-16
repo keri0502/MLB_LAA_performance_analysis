@@ -5,8 +5,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-from db_access import query
-from db_access import load_batter_raw, load_pitcher_raw
+from .db_access import query, load_batter_raw, load_pitcher_raw
 
 #--------------------------------------------------------------#
 # Data Processing Functions                                    #

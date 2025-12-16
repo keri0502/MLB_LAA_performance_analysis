@@ -1,7 +1,7 @@
 # src/layout_home.py
 from dash import dcc, html, Input, Output, callback
 
-from containers import (
+from .containers import (
     page_overview, 
     page_performance,
     page_contribution
