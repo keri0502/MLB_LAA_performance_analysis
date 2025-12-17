@@ -1,27 +1,26 @@
-from dash import dcc, html, Input, Output, State, callback, dash_table
 import plotly.express as px
+from dash import dcc, html, Input, Output, State, callback, dash_table
+import dash_bootstrap_components as dbc
 
-from .charts import (
+from src.charts import (
     plot_contribution_salary_scatter,
     plot_laa_batter_radar,
     plot_laa_hitter_team_radar,
     plot_laa_pitcher_radar,
     plot_overview_breakdown,
-    TEAM_ID,
     plot_performance_radar,
     plot_performance_bar,
     get_overview_tiles,
     get_team_record,
     get_player_list
 )
+from src.constant import TEAM_ID, TEAM_COLOR
 
-#--------------------------------------------------------------#
-# Radar Chart                                                  #
-#--------------------------------------------------------------#
 
-# 雷達圖區塊
 def radar_container():
-    """雷達圖區塊：只放圖，不放控制元件。"""
+    """
+    雷達圖區塊：只放圖，不放控制元件。
+    """
     return html.Div([
         html.H3(
             "Team Radar (PR values)",
@@ -38,14 +37,13 @@ def radar_container():
         )
     ])
 
+
 @callback(
     Output("radar-grid", "children"),
     Input("apply-button", "n_clicks"),
     State("player-type-radio", "value"),
     State("sub-type-dropdown", "value"),
 )
-
-# 雷達圖更新
 def update_radar_grid(n_clicks, player_type, sub_type):
     if n_clicks == 0 or not sub_type:
         return []
@@ -87,91 +85,109 @@ def update_radar_grid(n_clicks, player_type, sub_type):
 
     return cards
 
-#--------------------------------------------------------------#
-# Contribution vs. Salary Scatter Plot                         #
-#--------------------------------------------------------------#
 
-# Contribution vs. Salary 區塊
 def contribution_salary_container():
-    container = html.Div([
-        # 建立 checkbox
-        dcc.RadioItems(
-            id="player-type-radio",
-            options=[
-                {"label": "batter", "value": "batter"},
-                {"label": "pitcher", "value": "pitcher"},
+    """
+    Contribution vs. Salary 區塊 - 美化版
+    內含 scatter plot + dropdown + data table
+    """
+    return html.Div([
+        # Scatter Plot 圖表容器
+        html.Div(
+            [
+                dcc.Graph(id="player-scatter-graph")
             ],
-            value="batter",   # 預設選項
-            inline=True       # 兩個選項排成一列
+            style={
+                "background": "white",
+                "borderRadius": "12px",
+                "boxShadow": "0 4px 12px rgba(0,0,0,0.1)",
+                "border": "1px solid #e3e6f0",
+                "padding": "20px",
+                "marginBottom": "20px"
+            }
         ),
-        # 建立 dropdown，會根據 checkbox 的值而改變
-        dcc.Dropdown(
-            id="sub-type-dropdown",
-            value=None,
-            placeholder="please choose",
-            multi=True,
-            style={"width": "420px", "marginLeft": "12px"}
-        ),
-        html.Button("Apply", id="apply-button", n_clicks=0, style={"marginLeft": "12px"}),
-        # 取得 scatter plot，根據 checkbox 跟 dropdown 所選的值而變化
-        html.H2(
-            "Salary vs. Player Contribution",
-            style={"textAlign": "center"}
-        ),
-        dcc.Graph(id="player-scatter-graph"),
-        dcc.Dropdown(
-            id="action-dropdown",
-            options=[
-                {"label": "Retain", "value": "retain"},
-                {"label": "Trade", "value": "trade"},
-                {"label": "Extend", "value": "extend"},
-                {"label": "Option", "value": "option"},
+        
+        # Action Selection + Player Recommendations 合併容器
+        html.Div(
+            [
+                html.H5("Player Analysis & Recommendations", style={
+                    "color": "#2c3e50",
+                    "fontWeight": "600",
+                    "marginBottom": "20px",
+                    "fontSize": "18px",
+                    "textAlign": "center"
+                }),
+                
+                # Action Selection 區域
+                html.Div([
+                    html.Label("Action Selection:", style={
+                        "color": "#2c3e50",
+                        "fontWeight": "600",
+                        "marginBottom": "8px",
+                        "fontSize": "14px",
+                        "display": "block"
+                    }),
+                    dcc.Dropdown(
+                        id="action-dropdown",
+                        options=[
+                            {"label": "Retain", "value": "retain"},
+                            {"label": "Trade", "value": "trade"},
+                            {"label": "Extend", "value": "extend"},
+                            {"label": "Option", "value": "option"},
+                        ],
+                        value="retain",
+                        placeholder="Please choose an action",
+                        style={"marginBottom": "20px"}
+                    )
+                ]),
+                
+                # Data Table
+                dash_table.DataTable(
+                    id="player-list",
+                    data=[],
+                    page_size=10,
+                    sort_action="native",
+                    style_as_list_view=True,
+                    style_cell={
+                        "fontFamily": "Roboto, sans-serif",
+                        "fontSize": "16px",
+                        "textAlign": "center",
+                        "padding": "12px 15px",
+                        "backgroundColor": "white",
+                        "color": "#333333",
+                    },
+                    style_header={
+                        "backgroundColor": TEAM_COLOR,
+                        "color": "white",
+                        "fontWeight": "bold",
+                        "fontSize": "18px",
+                        "border": "none",
+                    },
+                    style_data={
+                        "borderBottom": "1px solid #E0E0E0",
+                    },
+                    style_data_conditional=[
+                        {
+                            "if": {"row_index": "odd"},
+                            "backgroundColor": "#F9F9F9"
+                        },
+                        {
+                            "if": {"state": "active"},
+                            "backgroundColor": "rgba(186, 0, 33, 0.1)",
+                            "border": "1px solid #BA0021",
+                        }
+                    ]
+                )
             ],
-            value="retain",
-            placeholder="please choose"
-        ),
-        dash_table.DataTable(
-            id="player-list",
-            data=[],
-            page_size=10,
-            sort_action="native",
-            style_cell={
-                "fontSize": "20px"
-            },
+            style={
+                "background": "white",
+                "borderRadius": "12px",
+                "boxShadow": "0 4px 12px rgba(0,0,0,0.1)",
+                "border": "1px solid #e3e6f0",
+                "padding": "20px"
+            }
         )
     ])
-    return container
-
-
-@callback(
-    Output("sub-type-dropdown", "options"),
-    Output("sub-type-dropdown", "value"),
-    Input("player-type-radio", "value")
-)
-
-# Contribution vs. Salary dropdown 更新
-def update_dropdown(player_type):
-    if player_type == "batter":
-        options = [
-            {"label": "1B", "value": "1B"},
-            {"label": "2B", "value": "2B"},
-            {"label": "3B", "value": "3B"},
-            {"label": "SS", "value": "SS"},
-            {"label": "C", "value": "C"},
-            {"label": "OF", "value": "OF"},
-            {"label": "DH", "value": "DH"},
-        ]
-        default_value = None
-    else:
-        options = [
-            {"label": "SP R", "value": "SP R"},
-            {"label": "SP L", "value": "SP L"},
-            {"label": "RP R", "value": "RP R"},
-            {"label": "RP L", "value": "RP L"},
-        ]
-        default_value = None
-
-    return options, default_value
 
 
 @callback(
@@ -180,7 +196,6 @@ def update_dropdown(player_type):
     State("player-type-radio", "value"),
     State("sub-type-dropdown", "value")
 )
-# Contribution vs. Salary scatter plot 更新
 def update_scatter(n_clicks, player_type, sub_type):
     if n_clicks == 0 or sub_type is None:
         return px.scatter()
@@ -199,7 +214,6 @@ def update_scatter(n_clicks, player_type, sub_type):
     State("sub-type-dropdown", "value"),
     prevent_initial_call=True
 )
-# 球員列表更新
 def update_player_list(n_clicks, action, player_type, sub_type):
     if n_clicks == 0 or sub_type is None:
         return [], []
@@ -211,243 +225,291 @@ def update_player_list(n_clicks, action, player_type, sub_type):
     return players.to_dict("records"), [{"name": col.upper(), "id": col} for col in players.columns]
 
 
-#--------------------------------------------------------------#
-# Overview Container                                           #
-#--------------------------------------------------------------#
+def trend_symbol(diff):
+    if diff is None:
+        return "–"
+    return "▲" if diff >= 0 else "▼"
 
-# Overview 區塊
+
+def summary_row(label, diff):
+    diff_color = "#28a745" if diff is None or diff >= 0 else "#dc3545"  # 綠色為正，紅色為負
+    bg_gradient = "linear-gradient(135deg, #ffffff 0%, #f8f9fb 100%)"
+    
+    return html.Div(
+        children=[
+            html.Div(
+                [
+                    html.H5(label, style={
+                        "textAlign": "center",
+                        "color": "#2c3e50",
+                        "fontSize": "20px",
+                        "fontWeight": "600",
+                        "marginBottom": "8px",
+                        "lineHeight": "1.2"
+                    }),
+                    html.Span(
+                        "N/A" if diff is None else f"{trend_symbol(diff)} {diff:+.1f}%",
+                        style={
+                            "fontWeight": "900",
+                            "color": diff_color,
+                            "fontSize": "24px",
+                            "textShadow": "0 1px 2px rgba(0,0,0,0.1)"
+                        }
+                    )
+                ],
+                style={
+                    "textAlign": "center",
+                    "display": "flex",
+                    "flexDirection": "column",
+                    "justifyContent": "center",
+                    "height": "100%",
+                    "padding": "15px"
+                }
+            )
+        ],
+        style={
+            "height": "140px",
+            "background": bg_gradient,
+            "border": "1px solid #e3e6f0",
+            "borderRadius": "12px",
+            "boxShadow": "0 4px 12px rgba(0,0,0,0.1)",
+            "transition": "all 0.3s ease",
+            "position": "relative",
+            "overflow": "hidden"
+        }
+    )
+
+
 def overview_container():
+    """
+    Overview page 主要區塊 - 美化版
+    包含戰績卡 + 概覽卡 + 三張雷達圖"""
     tiles = get_overview_tiles(TEAM_ID)
     record = get_team_record(TEAM_ID)
 
     sp_radar = plot_laa_pitcher_radar("SP")
     rp_radar = plot_laa_pitcher_radar("RP")
-    h_radar  = plot_laa_hitter_team_radar()
+    h_radar = plot_laa_hitter_team_radar()
 
-    # 左卡文字
-    w = record["W"]
-    l = record["L"]
+    # 戰績數據
+    win = record["W"]
+    loss = record["L"]
     rank = record["Rank"]
 
-    wl_big = "N/A" if w is None or l is None else f"{w} - {l}"
-    rank_text = "Division Rank: N/A" if rank is None else f"Division Rank: {rank}th"
-    games_text = "GAME: 162"  # 先固定；你之後若要從 DB 算也可以
-
-    # 右卡：SP/RP/H 三列（用你現有 fip- / ops+）
-    def trend_symbol(diff):
-        if diff is None:
-            return "–"
-        return "▲" if diff >= 0 else "▼"
-
-    def summary_row(label, metric_label, metric_value, diff):
-        metric_value_text = "N/A" if metric_value is None else f"{metric_value:.1f}"
-        diff_color = "#0B2D5C" if diff is None else ("#0B2D5C" if diff >= 0 else "#B00020")
-
-        return html.Div(
-            [
-                html.Div(trend_symbol(diff), style={"width": "28px", "fontSize": "24px", "color": diff_color}),
-                html.Div(label, style={"width": "70px", "fontSize": "34px", "fontWeight": "800", "color": "#0B2D5C"}),
-                html.Div(
-                    [
-                        html.Span(f"{metric_label}: ", style={"fontWeight": "700", "color": "#555"}),
-                        html.Span(metric_value_text, style={"fontWeight": "800", "color": "#B00020"}),
-                        html.Span("   "),
-                        html.Span("DIFF: ", style={"fontWeight": "700", "color": "#555"}),
-                        html.Span("N/A" if diff is None else f"{diff:+.1f}", style={"fontWeight": "800", "color": "#B00020"}),
-                    ],
-                    style={"fontSize": "26px"},
-                ),
-            ],
-            style={
-                "display": "flex",
-                "alignItems": "center",
-                "justifyContent": "space-between",
-                "border": "2px solid #E24A4A",
-                "padding": "18px 18px",
-            },
-        )
-
-    conclusion_text = overview_conclusion(tiles)
-
-    html.Div(
-        conclusion_text,
-        style={
-            "marginTop": "10px",
-            "fontSize": "18px",
-            "color": "#333",
-            "fontWeight": "600",
-        },
-    ),
-
-    # 先把「Overview 下拉 + bar chart」暫時移除（下一步改成三張 radar）
     return html.Div(
         [
-            # 上排：左戰績卡 + 右概覽卡
-            html.Div(
-                [
-                    # 左：戰績卡
-                    html.Div(
-                        [
-                            html.Div(games_text, style={"fontSize": "34px", "fontWeight": "800", "color": "#777"}),
+            # 主要數據卡片區域
+            dbc.Container([
+                dbc.Row(
+                    [
+                        # Record 卡片
+                        dbc.Col(
                             html.Div(
                                 [
-                                    html.Span(w if w is not None else "N/A",
-                                              style={"fontSize": "110px", "fontWeight": "900", "color": "#B00020"}),
-                                    html.Span(" Wins ", style={"fontSize": "28px", "color": "#B00020"}),
-                                    html.Span("  -  ", style={"fontSize": "60px", "fontWeight": "900", "color": "#222"}),
-                                    html.Span(l if l is not None else "N/A",
-                                              style={"fontSize": "110px", "fontWeight": "900", "color": "#222"}),
-                                    html.Span(" Loses", style={"fontSize": "28px", "color": "#222"}),
+                                    html.H5("Team Record", style={
+                                        "textAlign": "center",
+                                        "color": "#2c3e50",
+                                        "fontSize": "20px",
+                                        "fontWeight": "600",
+                                        "marginBottom": "8px"
+                                    }),
+                                    html.Div([
+                                        html.Span(
+                                            f"{win}-{loss}" if win is not None and loss is not None else "N/A",
+                                            style={
+                                                "fontSize": "24px",
+                                                "fontWeight": "900",
+                                                "color": "#2c3e50",
+                                                "textShadow": "0 1px 2px rgba(0,0,0,0.1)"
+                                            }
+                                        )
+                                    ], style={"textAlign": "center"})
                                 ],
-                                style={"display": "flex", "alignItems": "baseline", "gap": "8px"},
-                            ),
-                            html.Div(rank_text, style={"fontSize": "54px", "fontWeight": "900", "color": "#0B2D5C"}),
-                        ],
-                        style={
-                            "flex": "1",
-                            "border": "1px solid #DDD",
-                            "backgroundColor": "white",
-                            "padding": "24px",
-                            "minHeight": "260px",
-                        },
-                    ),
-
-                    # 右：SP/RP/H 概覽 + 結論
-                    html.Div(
-                        [
-                            summary_row("SP", "FIP-", tiles["SP"]["metric"], tiles["SP"]["diff"]),
-                            summary_row("RP", "FIP-", tiles["RP"]["metric"], tiles["RP"]["diff"]),
-                            summary_row("H",  "OPS+", tiles["H"]["metric"],  tiles["H"]["diff"]),
-                            html.Div(
-                                conclusion_text,
                                 style={
-                                    "marginTop": "10px",
-                                    "fontSize": "18px",
-                                    "color": "#333",
-                                    "fontWeight": "600",
-                                },
+                                    "textAlign": "center",
+                                    "display": "flex",
+                                    "flexDirection": "column",
+                                    "justifyContent": "center",
+                                    "height": "140px",
+                                    "background": "linear-gradient(135deg, #ffffff 0%, #f8f9fb 100%)",
+                                    "borderRadius": "12px",
+                                    "boxShadow": "0 4px 12px rgba(0,0,0,0.1)",
+                                    "border": "1px solid #e3e6f0",
+                                    "padding": "15px"
+                                }
                             ),
-                        ],
-                        style={"flex": "1", "display": "flex", "flexDirection": "column", "gap": "12px"},
-                    ),
-                ],
-                style={"display": "flex", "gap": "20px", "alignItems": "stretch"},
-            ),
-
-            # 下排：三張 radar（Step 2 會補）
-            html.Div(
-                [
-                card(
-                    dcc.Graph(figure=sp_radar, config={"displayModeBar": False}, style={"height": "360px"}),
-                    title="LAA SP — Pitcher Radar (PR values)",
-                    className="radar-card",
-                ),
-                card(
-                    dcc.Graph(figure=rp_radar, config={"displayModeBar": False}, style={"height": "360px"}),
-                    title="LAA RP — Pitcher Radar (PR values)",
-                    className="radar-card",
-                ),
-                card(
-                    dcc.Graph(figure=h_radar, config={"displayModeBar": False}, style={"height": "360px"}),
-                    title="LAA Hitters — Radar (PR values)",
-                    className="radar-card",
-                ),
-            ],
-            className="radar-grid",
-            )
+                            width=12, md=3, className="mb-3"
+                        ),
+                        dbc.Col(
+                            html.Div(
+                                [
+                                    html.H5("Division Rank", style={
+                                        "textAlign": "center",
+                                        "color": "#2c3e50",
+                                        "fontSize": "20px",
+                                        "fontWeight": "600",
+                                        "marginBottom": "8px"
+                                    }),
+                                    html.Div(
+                                        f"{rank}th" if rank is not None else "N/A",
+                                        style={
+                                            "textAlign": "center",
+                                            "fontSize": "24px",
+                                            "fontWeight": "900",
+                                            "color": "#2c3e50",
+                                            "textShadow": "0 1px 2px rgba(0,0,0,0.1)"
+                                        }
+                                    )
+                                ],
+                                style={
+                                    "textAlign": "center",
+                                    "display": "flex",
+                                    "flexDirection": "column",
+                                    "justifyContent": "center",
+                                    "height": "140px",
+                                    "background": "linear-gradient(135deg, #ffffff 0%, #f8f9fb 100%)",
+                                    "borderRadius": "12px",
+                                    "boxShadow": "0 4px 12px rgba(0,0,0,0.1)",
+                                    "border": "1px solid #e3e6f0",
+                                    "padding": "15px"
+                                }
+                            ),
+                            width=12, md=3, className="mb-3"
+                        ),
+                        dbc.Col(
+                            summary_row("Starting Pitcher", tiles["SP"]["diff"]),
+                            width=12, md=2, className="mb-3"
+                        ),
+                        dbc.Col(
+                            summary_row("Relief Pitcher", tiles["RP"]["diff"]),
+                            width=12, md=2, className="mb-3"
+                        ),
+                        dbc.Col(
+                            summary_row("Batters", tiles["H"]["diff"]),
+                            width=12, md=2, className="mb-3"
+                        ),
+                    ],
+                    className="g-3 mb-4"
+                )
+            ], fluid=True),
+            dbc.Container([
+                dbc.Row(
+                    [
+                        dbc.Col([
+                            html.Div(
+                                [
+                                    html.H5("Starting Pitcher Radar", style={
+                                        "textAlign": "center",
+                                        "color": "#2c3e50",
+                                        "fontWeight": "600",
+                                        "marginBottom": "15px"
+                                    }),
+                                    dcc.Graph(
+                                        figure=sp_radar,
+                                        config={"displayModeBar": False},
+                                        style={"height": "360px"}
+                                    )
+                                ],
+                                style={
+                                    "background": "white",
+                                    "borderRadius": "12px",
+                                    "boxShadow": "0 4px 12px rgba(0,0,0,0.1)",
+                                    "border": "1px solid #e3e6f0",
+                                    "padding": "20px"
+                                }
+                            )
+                        ], width=12, md=4, className="mb-3"),
+                        dbc.Col([
+                            html.Div(
+                                [
+                                    html.H5("Relief Pitcher Radar", style={
+                                        "textAlign": "center",
+                                        "color": "#2c3e50",
+                                        "fontWeight": "600",
+                                        "marginBottom": "15px"
+                                    }),
+                                    dcc.Graph(
+                                        figure=rp_radar,
+                                        config={"displayModeBar": False},
+                                        style={"height": "360px"}
+                                    )
+                                ],
+                                style={
+                                    "background": "white",
+                                    "borderRadius": "12px",
+                                    "boxShadow": "0 4px 12px rgba(0,0,0,0.1)",
+                                    "border": "1px solid #e3e6f0",
+                                    "padding": "20px"
+                                }
+                            )
+                        ], width=12, md=4, className="mb-3"),
+                        dbc.Col([
+                            html.Div(
+                                [
+                                    html.H5("Batter Radar", style={
+                                        "textAlign": "center",
+                                        "color": "#2c3e50",
+                                        "fontWeight": "600",
+                                        "marginBottom": "15px"
+                                    }),
+                                    dcc.Graph(
+                                        figure=h_radar,
+                                        config={"displayModeBar": False},
+                                        style={"height": "360px"}
+                                    )
+                                ],
+                                style={
+                                    "background": "white",
+                                    "borderRadius": "12px",
+                                    "boxShadow": "0 4px 12px rgba(0,0,0,0.1)",
+                                    "border": "1px solid #e3e6f0",
+                                    "padding": "20px"
+                                }
+                            )
+                        ], width=12, md=4, className="mb-3"),
+                    ],
+                    className="g-3"
+                )
+            ], fluid=True)
         ],
-        style={"padding": "20px", "backgroundColor": "#F3F5F7", "minHeight": "100vh"},
+        style={
+            "padding": "25px",
+            "minHeight": "100vh"
+        },
     )
+
 
 @callback(
     Output("overview-breakdown-chart", "figure"),
     Input("overview-group-dropdown", "value")
 )
-
-# Overview breakdown chart 更新
 def overview_breakdown_real(group):
     return plot_overview_breakdown(team_id=TEAM_ID, group=group)
 
-def overview_conclusion(tiles: dict) -> str:
-    """
-    Generate a short diagnostic conclusion based on SP/RP/H diffs.
-    diff rules:
-      - SP/RP (FIP-): diff = 100 - FIP-  (positive is good)
-      - H (OPS+)   : diff = OPS+ - 100   (positive is good)
-    """
-    def d(key: str):
-        v = tiles.get(key, {}).get("diff", None)
-        return None if v is None else float(v)
-
-    sp = d("SP")
-    rp = d("RP")
-    h  = d("H")
-
-    # missing data
-    if sp is None or rp is None or h is None:
-        return "Overall: insufficient data to generate a reliable conclusion."
-
-    pitching_avg = (sp + rp) / 2.0
-
-    # severity helper
-    def severity(x: float) -> str:
-        ax = abs(x)
-        if ax >= 10:
-            return "severely"
-        if ax >= 5:
-            return "clearly"
-        if ax >= 2:
-            return "slightly"
-        return "roughly"
-
-    # 判断主弱点（选 diff 最负的那一项）
-    weakest_key, weakest_val = min([("SP", sp), ("RP", rp), ("H", h)], key=lambda t: t[1])
-
-    # both sides status
-    pitching_bad = (sp < 0) and (rp < 0)
-    hitting_bad  = (h < 0)
-
-    if pitching_bad and hitting_bad:
-        return (
-            f"Overall weakness: both pitching and hitting are below league average. "
-            f"Primary concern: {weakest_key} ({severity(weakest_val)} below average)."
-        )
-
-    if pitching_bad and not hitting_bad:
-        return (
-            f"Overall weakness: pitching is below league average "
-            f"(SP {sp:+.1f}, RP {rp:+.1f}). "
-            f"Primary concern: {weakest_key} ({severity(weakest_val)} below average)."
-        )
-
-    if not pitching_bad and hitting_bad:
-        return (
-            f"Overall weakness: hitting is below league average (H {h:+.1f}). "
-            f"Primary concern: H ({severity(h)} below average)."
-        )
-
-    # neither is clearly bad
-    if pitching_avg > 0 and h > 0:
-        return "Overall strength: both pitching and hitting are above league average."
-    if pitching_avg > 0 and h <= 0:
-        return "Overall: pitching is solid, but hitting is around league average."
-    if pitching_avg <= 0 and h > 0:
-        return "Overall: hitting is solid, but pitching is around league average."
-
-    return "Overall: performance is around league average across pitching and hitting."
-
-#--------------------------------------------------------------#
-# Layout Pages                                                 #
-#--------------------------------------------------------------#
 
 def card(children, title: str | None = None, className: str = ""):
     return html.Div(
         [
-            html.Div(title, className="card-title") if title else None,
+            html.Div(title, style={
+                "textAlign": "center",
+                "color": "#2c3e50",
+                "fontWeight": "600",
+                "marginBottom": "15px",
+                "fontSize": "16px"
+            }) if title else None,
             html.Div(children, className="card-body"),
         ],
+        style={
+            "background": "white",
+            "borderRadius": "12px",
+            "boxShadow": "0 4px 12px rgba(0,0,0,0.1)",
+            "border": "1px solid #e3e6f0",
+            "padding": "20px",
+            "margin": "10px 0"
+        },
         className=f"card {className}".strip(),
     )
+
 
 def filter_bar(radio_id: str, dropdown_id: str, button_id: str, default_player_type: str = "batter"):
     """
@@ -459,8 +521,8 @@ def filter_bar(radio_id: str, dropdown_id: str, button_id: str, default_player_t
             dcc.RadioItems(
                 id=radio_id,
                 options=[
-                    {"label": "batter", "value": "batter"},
-                    {"label": "pitcher", "value": "pitcher"},
+                    {"label": "Batter", "value": "batter"},
+                    {"label": "Pitcher", "value": "pitcher"},
                 ],
                 value=default_player_type,
                 inline=True,
@@ -476,7 +538,7 @@ def filter_bar(radio_id: str, dropdown_id: str, button_id: str, default_player_t
                 "Apply",
                 id=button_id,
                 n_clicks=0,
-                style={"height": "24px"},
+                style={"height": "30px"},
             ),
         ],
         style={
@@ -487,46 +549,12 @@ def filter_bar(radio_id: str, dropdown_id: str, button_id: str, default_player_t
         },
     )
 
-# Layout: Overview Page
-def page_overview():
-    return html.Div(
-        [
-            overview_container(), 
-        ],
-        style={"padding": "16px"},
-    )
-
-# Layout: Performance Page
-def page_performance():
-    return html.Div(
-        [
-            html.H2("Performance"),
-
-            filter_bar(
-                radio_id="perf-player-type-radio",
-                dropdown_id="perf-subtype-dropdown",
-                button_id="perf-apply-button",
-                default_player_type="batter",
-            ),
-
-            html.Div(
-                [
-                    dcc.Graph(id="perf-bar-chart"),
-                    html.Div(id="perf-radar-grid"),
-                ],
-                style={"display": "flex", "flexDirection": "column", "gap": "14px"},
-            ),
-        ],
-        style={"padding": "16px"},
-    )
 
 @callback(
-    Output("perf-subtype-dropdown", "options"),
-    Output("perf-subtype-dropdown", "value"),
-    Input("perf-player-type-radio", "value"),
+    Output("sub-type-dropdown", "options"),
+    Output("sub-type-dropdown", "value"),
+    Input("player-type-radio", "value"),
 )
-
-# Performance dropdown 更新
 def perf_update_dropdown(player_type):
     """
     Batter: defensive positions
@@ -552,18 +580,18 @@ def perf_update_dropdown(player_type):
 
     return options, None
 
+
 @callback(
     Output("perf-bar-chart", "figure"),
     Output("perf-radar-grid", "children"),
-    Input("perf-apply-button", "n_clicks"),
-    State("perf-player-type-radio", "value"),
-    State("perf-subtype-dropdown", "value"),
+    Input("apply-button", "n_clicks"),
+    State("player-type-radio", "value"),
+    State("sub-type-dropdown", "value"),
 )
-# Performance charts 更新
 def perf_update_charts(n_clicks, player_type, sub_types):
     if n_clicks == 0 or not sub_types:
         return px.bar(), []
-    
+
     bar_groups = sub_types
     radar_groups = sub_types
 
@@ -600,64 +628,3 @@ def perf_update_charts(n_clicks, player_type, sub_types):
     )
 
     return fig_bar, radar_grid
-
-# Layout: Contribution Page
-def page_contribution():
-    return html.Div(
-        [
-            html.H2("Contribution"),
-
-            # 同一套 filter bar（你現在想共用的）
-            filter_bar(
-                radio_id="player-type-radio",
-                dropdown_id="sub-type-dropdown",
-                button_id="apply-button",
-                default_player_type="batter",
-            ),
-
-            dcc.Graph(id="player-scatter-graph"),
-
-            # ✅ 把這段放回來（就是你說 Heroku 上不見的）
-            dcc.Dropdown(
-                id="action-dropdown",
-                options=[
-                    {"label": "Retain", "value": "retain"},
-                    {"label": "Trade", "value": "trade"},
-                    {"label": "Extend", "value": "extend"},
-                    {"label": "Option", "value": "option"},
-                ],
-                value="retain",
-                placeholder="please choose",
-                style={"width": "320px", "marginTop": "12px"},
-            ),
-            dash_table.DataTable(
-                id="player-list",
-                data=[],
-                page_size=10,
-                sort_action="native",
-                style_cell={"fontSize": "16px"},
-                style_table={"marginTop": "10px"},
-            ),
-        ],
-        style={"padding": "16px"},
-    )
-
-def overview_conclusion(tiles: dict) -> str:
-    sp = tiles["SP"]["diff"]
-    rp = tiles["RP"]["diff"]
-    h  = tiles["H"]["diff"]
-
-    # None 防呆
-    if sp is None or rp is None or h is None:
-        return "Not enough data to generate conclusion."
-
-    pitching = (sp + rp) / 2
-    hitting = h
-
-    if pitching < 0 and hitting < 0:
-        return "Overall weakness: both pitching and hitting are below league average."
-    if pitching < 0 and hitting >= 0:
-        return "Key issue: pitching is below league average. Consider upgrading rotation/bullpen depth."
-    if pitching >= 0 and hitting < 0:
-        return "Key issue: offense is below league average. Consider upgrading lineup production."
-    return "Overall: team performance is above league average in both pitching and hitting."
