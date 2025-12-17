@@ -7,7 +7,6 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = PROJECT_ROOT / "db" / "MLBDashboard.db"
 
 
-
 def query(sql: str) -> pd.DataFrame:
     connection = sqlite3.connect(database=DB_PATH)
     cur = connection.cursor()
@@ -18,6 +17,7 @@ def query(sql: str) -> pd.DataFrame:
     connection.close()
     return result
 
+
 def load_batter_raw():
     sql = """
     SELECT playerID, yearID, teamID, POS,
@@ -26,6 +26,7 @@ def load_batter_raw():
     FROM batter
     """
     return query(sql)
+
 
 def load_pitcher_raw():
     sql = """

@@ -5,14 +5,14 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-from .db_access import query, load_batter_raw, load_pitcher_raw
+from src.db_access import query, load_batter_raw, load_pitcher_raw
+from src.constant import TEAM_ID, BATTER_RADAR_METRICS, PITCHER_RADAR_METRICS, TEAM_COLOR
 
-#--------------------------------------------------------------#
-# Data Processing Functions                                    #
-#--------------------------------------------------------------#
 
-# 打者指標計算
 def compute_batter_rates(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    計算打者的各種率（AVG, OBP, SLG, BB_rate, K_rate）
+    """
     df = df.copy()
     # 基本打擊指標計算
     df["1B"] = df["H"] - df["2B"] - df["3B"] - df["HR"]
@@ -20,15 +20,18 @@ def compute_batter_rates(df: pd.DataFrame) -> pd.DataFrame:
 
     df["AVG"] = df["H"] / df["AB"].where(df["AB"] > 0, 1)
     df["OBP"] = (df["H"] + df["BB"] + df["HBP"]) / df["PA"].where(df["PA"] > 0, 1)
-    df["SLG"] = (df["1B"] + 2*df["2B"] + 3*df["3B"] + 4*df["HR"]) / df["AB"].where(df["AB"] > 0, 1)
+    df["SLG"] = (df["1B"] + 2 * df["2B"] + 3 * df["3B"] + 4 * df["HR"]) / df["AB"].where(df["AB"] > 0, 1)
     df["BB_rate"] = df["BB"] / df["PA"].where(df["PA"] > 0, 1)
     df["K_rate"] = df["SO"] / df["PA"].where(df["PA"] > 0, 1)
     df["OPS_plus"] = pd.to_numeric(df["OPS_plus"], errors="coerce")
 
     return df
 
-# 打者 PR 計算
+
 def add_batter_pr(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    計算打者各指標的百分等級排名（PR）
+    """
     df = df.copy()
     league = df[df["PA"] >= 50].copy()  # 設門檻，避免樣本太小
 
@@ -43,8 +46,11 @@ def add_batter_pr(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-# 投手指標計算
+
 def compute_pitcher_rates(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    計算投手的各種率（K9, BB9, H9, WHIP）
+    """
     df = df.copy()
 
     # 將 IPouts 轉成局數
@@ -67,8 +73,11 @@ def compute_pitcher_rates(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-# 投手 PR 計算
+
 def add_pitcher_pr(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    計算投手各指標的百分等級排名（PR）
+    """
     df = df.copy()
 
     # 設定聯盟樣本門檻：例如 IP >= 20
@@ -86,14 +95,7 @@ def add_pitcher_pr(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-# 指定 team
-TEAM_ID = "LAA"
 
-#--------------------------------------------------------------#
-# Scatter plot: Salary vs. Player Contribution                 #
-#--------------------------------------------------------------#
-
-# Contribution vs Salary 散布圖
 def get_players(player_type: Literal["batter", "pitcher"], roles: List[str]) -> pd.DataFrame:
     """
     取得特定位置的球員數據
@@ -148,6 +150,7 @@ def get_metric_name(player_type: Literal["batter", "pitcher"]) -> str:
     metric = metrics[player_type]
     return metric
 
+
 def plot_contribution_salary_scatter(player_type: Literal["batter", "pitcher"], roles: List[str]) -> go.Figure:
     """
     畫選手貢獻和薪資的散布圖
@@ -159,46 +162,134 @@ def plot_contribution_salary_scatter(player_type: Literal["batter", "pitcher"], 
         roles=roles
     )
     salary_median = get_salary_median(player_type=player_type)
+    
+    # 創建四象限的分類
+    players['quadrant'] = 'Other'
+    median_performance = 100
+    
+    # 定義四象限
+    high_sal_high_perf = (players['salary'] >= salary_median) & (players[y_axis] >= median_performance)
+    high_sal_low_perf = (players['salary'] >= salary_median) & (players[y_axis] < median_performance)
+    low_sal_high_perf = (players['salary'] < salary_median) & (players[y_axis] >= median_performance)
+    low_sal_low_perf = (players['salary'] < salary_median) & (players[y_axis] < median_performance)
+    
+    players.loc[high_sal_high_perf, 'quadrant'] = 'Star Players'
+    players.loc[high_sal_low_perf, 'quadrant'] = 'Overpaid'
+    players.loc[low_sal_high_perf, 'quadrant'] = 'Value Players'
+    players.loc[low_sal_low_perf, 'quadrant'] = 'Developing'
+    
+    # 自定義顏色
+    color_map = {
+        'Star Players': '#28a745',    # 綠色
+        'Value Players': '#17a2b8',   # 青色
+        'Overpaid': '#dc3545',        # 紅色
+        'Developing': '#ffc107'       # 黃色
+    }
+    
     # 畫圖
     fig = px.scatter(
         data_frame=players,
         x="salary",
         y=y_axis,
-        hover_data=["playerID"]
+        color='quadrant',
+        color_discrete_map=color_map,
+        hover_data=["playerID"],
+        size_max=12,
+        opacity=0.8
     )
+    
+    # 美化散點
+    fig.update_traces(
+        marker=dict(
+            size=10,
+            line=dict(width=1, color='white'),
+            sizemode='diameter'
+        )
+    )
+
+    # 水平線 (performance = 100)
     fig.add_shape(
         type="line",
         x0=min(players['salary'].min(), salary_median),
-        y0=100,
+        y0=median_performance,
         x1=max(players['salary'].max(), salary_median),
-        y1=100,
-        line=dict(width=2, dash="dash", color="black")
+        y1=median_performance,
+        line=dict(width=2, dash="dash", color="rgba(128,128,128,0.7)")
     )
-    fig.add_annotation(
-        x=players["salary"].max(),
-        y=100,
-        text=f"{y_axis.upper()} = 100",
-        showarrow=False,
-        yanchor="bottom",
-        xanchor="right",
-        font=dict(size=12, color="black")
-    )
+    
+    # 垂直線 (median salary)
     fig.add_shape(
         type="line",
         y0=players[y_axis].min(),
         x0=salary_median,
         y1=players[y_axis].max(),
         x1=salary_median,
-        line=dict(width=2, dash="dash", color="black")
+        line=dict(width=2, dash="dash", color="rgba(128,128,128,0.7)")
     )
+    
+    # 美化註解
     fig.add_annotation(
-        x=salary_median,
-        y=players[y_axis].max(),
-        text=f"Median salary = {salary_median:,.0f}",
+        x=players["salary"].max() * 0.95,
+        y=median_performance + 5,
+        text=f"League Average {y_axis.upper()} = 100",
+        showarrow=False,
+        yanchor="bottom",
+        xanchor="right",
+        font=dict(size=12, color="#2c3e50"),
+        bgcolor="rgba(255,255,255,0.8)",
+        bordercolor="#2c3e50",
+        borderwidth=1
+    )
+    
+    fig.add_annotation(
+        x=salary_median + (players["salary"].max() - salary_median) * 0.1,
+        y=players[y_axis].max() * 0.95,
+        text=f"Median Salary<br>${salary_median:,.0f}",
         showarrow=False,
         yanchor="top",
         xanchor="left",
-        font=dict(size=12, color="black")
+        font=dict(size=12, color="#2c3e50"),
+        bgcolor="rgba(255,255,255,0.8)",
+        bordercolor="#2c3e50",
+        borderwidth=1
+    )
+    
+    # 美化布局
+    fig.update_layout(
+        title={
+            'text': f"{player_type.title()} Salary vs Performance Analysis",
+            'x': 0.5,
+            'xanchor': 'center',
+            'font': {'size': 18, 'color': '#2c3e50'}
+        },
+        xaxis_title="Salary ($)",
+        yaxis_title=f"{y_axis.upper()} (League Average = 100)",
+        font=dict(family="Roboto, sans-serif", color="#2c3e50"),
+        plot_bgcolor='rgba(248,249,250,0.8)',
+        paper_bgcolor='white',
+        showlegend=True,
+        legend=dict(
+            orientation="v",
+            yanchor="top",
+            y=1,
+            xanchor="left",
+            x=1.02,
+            bgcolor="rgba(255,255,255,0.8)",
+            borderwidth=0,
+            title_text=""
+        ),
+        margin=dict(l=60, r=120, t=80, b=60)
+    )
+    
+    # 美化軸
+    fig.update_xaxes(
+        gridcolor='rgba(128,128,128,0.2)',
+        zerolinecolor='rgba(128,128,128,0.4)',
+        tickformat='$,.0f'
+    )
+    fig.update_yaxes(
+        gridcolor='rgba(128,128,128,0.2)',
+        zerolinecolor='rgba(128,128,128,0.4)'
     )
 
     return fig
@@ -228,39 +319,17 @@ def get_player_list(player_type: Literal["batter", "pitcher"], roles: List[str],
         condition = (players["salary"] < salary_median) & (op(players[metric], 100))
     elif action == "option":
         condition = (players["salary"] < salary_median) & (~op(players[metric], 100))
-    
+
     filtered_players = players[condition]
     filtered_players["salary"] = filtered_players["salary"].apply(lambda x: f"{x:,.0f}")
     filtered_players[metric] = filtered_players[metric].apply(lambda x: round(float(x), 2))
     return filtered_players
 
 
-#--------------------------------------------------------------#
-# Radar Chart: Batter Group Radar (LAA only)                   #
-#--------------------------------------------------------------#
-
-# 打者群組雷達圖指標
-BATTER_RADAR_METRICS = [
-    "AVG_PR",
-    "OBP_PR",
-    "SLG_PR",
-    "BB_rate_PR",
-    "K_rate_PR",
-    "OPS_plus_PR"
-]
-
-# 投手群組雷達圖指標
-PITCHER_RADAR_METRICS = [
-    "ERA_PR",   # ERA 表現（反向成高分好）
-    "fip_PR",   # FIP 表現
-    "WHIP_PR",  # WHIP
-    "K9_PR",    # 三振能力
-    "BB9_PR",   # 保送控制
-    "H9_PR",    # 被安打抑制
-]
-
-# 打者群組資料建構
 def build_laa_batter_group_profile(group_code: str) -> pd.Series | None:
+    """
+    回傳洛杉磯天使隊 (TEAM_ID) 某打者群組的 6 個 PR 平均值。
+    """
     df_raw = load_batter_raw()
     df = compute_batter_rates(df_raw)
     df = add_batter_pr(df)
@@ -277,7 +346,7 @@ def build_laa_batter_group_profile(group_code: str) -> pd.Series | None:
     profile = df[BATTER_RADAR_METRICS].mean()
     return profile
 
-# 投手群組資料建構
+
 def build_laa_pitcher_group_profile(group_code: str) -> pd.Series | None:
     """
     回傳洛杉磯天使隊 (TEAM_ID) 某投手群組的 6 個 PR 平均值。
@@ -324,7 +393,7 @@ def build_laa_pitcher_group_profile(group_code: str) -> pd.Series | None:
 
     return profile
 
-# 打者雷達圖
+
 def plot_laa_batter_radar(group_code: str) -> go.Figure:
     """
     畫出 LAA 在指定打者群組 (group_code) 的雷達圖。
@@ -336,9 +405,9 @@ def plot_laa_batter_radar(group_code: str) -> go.Figure:
 
     if profile is None:
         return go.Figure(
-            layout_title_text = f"{TEAM_ID} {group_code} – No data for selected group"
+            layout_title_text=f"{TEAM_ID} {group_code} – No data for selected group"
         )
-    
+
     metrics = profile.index.tolist()
     values = profile.values.tolist()
 
@@ -350,26 +419,26 @@ def plot_laa_batter_radar(group_code: str) -> go.Figure:
 
     fig.add_trace(
         go.Scatterpolar(
-            r = values,
-            theta = metrics,
-            fill = 'toself',
-            name = f"{TEAM_ID} {group_code}"
+            r=values,
+            theta=metrics,
+            fill='toself',
+            name=f"{TEAM_ID} {group_code}"
         )
     )
-    
+
     fig.update_layout(
-        polar = dict(
-            radialaxis = dict(
-                visible = True,
-                range = [0, 100]
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                range=[0, 100]
             )
         ),
-        showlegend = False,
+        showlegend=False,
     )
 
     return fig
 
-# 投手雷達圖
+
 def plot_laa_pitcher_radar(group_code: str) -> go.Figure:
     """
     畫出 LAA 在指定投手群組 (group_code) 的雷達圖。
@@ -411,19 +480,20 @@ def plot_laa_pitcher_radar(group_code: str) -> go.Figure:
 
     return fig
 
-# 全隊打者雷達圖
+
 def build_laa_hitter_team_profile() -> pd.Series | None:
     df_raw = load_batter_raw()
     df = compute_batter_rates(df_raw)
     df = add_batter_pr(df)
 
     df = df[df["teamID"] == TEAM_ID].copy()
-    df = df[df["POS"].isin(["C","1B","2B","3B","SS","OF","DH"])]
+    df = df[df["POS"].isin(["C", "1B", "2B", "3B", "SS", "OF", "DH"])]
 
     if df.empty:
         return None
 
     return df[BATTER_RADAR_METRICS].mean()
+
 
 def plot_laa_hitter_team_radar() -> go.Figure:
     profile = build_laa_hitter_team_profile()
@@ -442,11 +512,8 @@ def plot_laa_hitter_team_radar() -> go.Figure:
         showlegend=False,
     )
     return fig
-#--------------------------------------------------------------#
-# Overview Breakdown Bar Chart                                 #
-#--------------------------------------------------------------#
 
-# Overview breakdown: Team vs League
+
 def plot_overview_breakdown(team_id: str, group: str) -> go.Figure:
     """
     Overview breakdown: Team vs League
@@ -471,7 +538,7 @@ def plot_overview_breakdown(team_id: str, group: str) -> go.Figure:
         x_title = "Throws"
 
     else:  # group == "H"
-        hitter_pos = ["1B","2B","3B","SS","OF","C","DH"]
+        hitter_pos = ["1B", "2B", "3B", "SS", "OF", "C", "DH"]
         pos_str = "','".join(hitter_pos)
 
         df = query(f"""
@@ -513,11 +580,7 @@ def plot_overview_breakdown(team_id: str, group: str) -> go.Figure:
 
     return fig
 
-#--------------------------------------------------------------#
-# Page performance                                             #
-#--------------------------------------------------------------#
 
-# Performance page Bar Chart
 def plot_performance_bar(team_id: str, player_type: str, groups: list[str]) -> go.Figure:
     """
     Bar chart for Performance page:
@@ -527,6 +590,8 @@ def plot_performance_bar(team_id: str, player_type: str, groups: list[str]) -> g
     """
     fig = go.Figure()
 
+    team_color = TEAM_COLOR
+    league_color = "#BDC3C7"
     if player_type == "batter":
         pos_str = "','".join(groups)
         df = query(f"""
@@ -541,7 +606,6 @@ def plot_performance_bar(team_id: str, player_type: str, groups: list[str]) -> g
         """).dropna(subset=["team_metric"])
 
         metric_name = "OPS+"
-        x_title = "Position"
 
     else:
         roles_str = "','".join(groups)  # groups 會是 ["SP R","SP L","RP R","RP L"]
@@ -558,26 +622,52 @@ def plot_performance_bar(team_id: str, player_type: str, groups: list[str]) -> g
         """).dropna(subset=["team_metric"])
 
         metric_name = "FIP-"
-        x_title = "Role / Throws"
 
-    fig.add_bar(x=df["category"], y=df["league_metric"], name="League Average")
-    fig.add_bar(x=df["category"], y=df["team_metric"], name="Team Average")
+    x_title = "Position"
+
+    fig.add_bar(x=df["category"], y=df["league_metric"], name="League Average", marker_color=league_color)
+    fig.add_bar(x=df["category"], y=df["team_metric"], name="Team Average", marker_color=team_color)
 
     fig.update_layout(
+        title={
+            'text': f"{team_id} vs League Average",
+            'y': 0.95,
+            'x': 0.5,
+            'xanchor': 'center',
+            'yanchor': 'top',
+            'font': {'size': 20, 'family': "Roboto, sans-serif"}
+        },
         barmode="group",
-        xaxis_title=x_title,
-        yaxis_title=metric_name,
-        legend_title="",
-        margin=dict(l=40, r=20, t=40, b=40),
-        title=f"{team_id} vs League – {metric_name}",
+        bargap=0.5,
+        bargroupgap=0.15,
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            title=""
+        ),
+        xaxis=dict(
+            title=x_title,
+            showgrid=False,
+            linecolor='rgba(0,0,0,0.2)',
+            tickfont=dict(family='Roboto', size=12)
+        ),
+        yaxis=dict(
+            title=metric_name,
+            showgrid=True,
+            gridcolor='rgba(0,0,0,0.05)',
+            gridwidth=1,
+            zeroline=False
+        ),
+        margin=dict(l=40, r=20, t=60, b=40)
     )
     return fig
 
-#--------------------------------------------------------------#
-# Page functions                                               #
-#--------------------------------------------------------------#
 
-# Performance page 雷達圖入口
 def plot_performance_radar(player_type: str, group_code: str) -> go.Figure:
     """
     Performance page 用的統一雷達入口（LAA only）
@@ -594,7 +684,7 @@ def plot_performance_radar(player_type: str, group_code: str) -> go.Figure:
 
     return go.Figure(layout_title_text=f"Unknown player_type: {player_type}")
 
-# Overview tiles data 入口
+
 def get_overview_tiles(team_id: str) -> dict:
     """
     回傳 Overview tiles 需要的數值（從 DB 計算）：
@@ -634,15 +724,15 @@ def get_overview_tiles(team_id: str) -> dict:
     # diffs (依你的定義)
     sp_diff = (BASELINE - sp_metric) if sp_metric is not None else None
     rp_diff = (BASELINE - rp_metric) if rp_metric is not None else None
-    h_diff  = (h_metric - BASELINE) if h_metric is not None else None
+    h_diff = (h_metric - BASELINE) if h_metric is not None else None
 
     return {
         "SP": {"metric": sp_metric, "diff": sp_diff},
         "RP": {"metric": rp_metric, "diff": rp_diff},
-        "H":  {"metric": h_metric, "diff": h_diff},
+        "H": {"metric": h_metric, "diff": h_diff},
     }
 
-# Overview team record 入口
+
 def get_team_record(team_id: str) -> dict:
     """
     從 DB 的 team table 取戰績與排名
