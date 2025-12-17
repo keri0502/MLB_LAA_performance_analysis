@@ -16,3 +16,6 @@ It uses a SQLite database (`MLBDashboard.db`) and several CSV datasets
 
 - `src/`  
   - (will contain Python scripts for the dashboard & database connection)
+
+- `app.py`: main entry point of the application
+  
