@@ -110,7 +110,7 @@ def contribution_salary_container():
         # Action Selection + Player Recommendations 合併容器
         html.Div(
             [
-                html.H5("Player Analysis & Recommendations", style={
+                html.H5("Player Analysis", style={
                     "color": "#2c3e50",
                     "fontWeight": "600",
                     "marginBottom": "20px",

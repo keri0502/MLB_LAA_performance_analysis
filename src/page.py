@@ -31,13 +31,6 @@ def page_performance():
                     # Bar Chart 容器添加陰影
                     html.Div(
                         [
-                            html.H5("Team vs League Performance", style={
-                                "textAlign": "center",
-                                "color": "#2c3e50",
-                                "fontWeight": "600",
-                                "marginBottom": "15px",
-                                "fontSize": "18px"
-                            }),
                             dcc.Graph(id="perf-bar-chart")
                         ],
                         style={

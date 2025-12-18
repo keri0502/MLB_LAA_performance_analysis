@@ -242,7 +242,7 @@ def plot_contribution_salary_scatter(player_type: Literal["batter", "pitcher"], 
     )
     
     fig.add_annotation(
-        x=salary_median + (players["salary"].max() - salary_median) * 0.1,
+        x=salary_median + (players["salary"].max() - salary_median) * 0.02,
         y=players[y_axis].max() * 0.95,
         text=f"Median Salary<br>${salary_median:,.0f}",
         showarrow=False,
