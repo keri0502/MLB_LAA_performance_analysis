@@ -1,6 +1,7 @@
 import plotly.express as px
-from dash import dcc, html, Input, Output, State, callback, dash_table
+import plotly.graph_objects as go
 import dash_bootstrap_components as dbc
+from dash import dcc, html, Input, Output, State, callback, dash_table
 
 from src.charts import (
     plot_contribution_salary_scatter,
@@ -12,7 +13,8 @@ from src.charts import (
     plot_performance_bar,
     get_overview_tiles,
     get_team_record,
-    get_player_list
+    get_player_list,
+    empty_radar_figure
 )
 from src.constant import TEAM_ID, TEAM_COLOR
 
@@ -590,7 +592,23 @@ def perf_update_dropdown(player_type):
 )
 def perf_update_charts(n_clicks, player_type, sub_types):
     if n_clicks == 0 or not sub_types:
-        return px.bar(), []
+        empty_card = card(
+            dcc.Graph(
+                figure=empty_radar_figure(),
+                config={"displayModeBar": False}
+            ),
+            title="Radar Chart (PR values)",
+        )
+
+        radar_grid = html.Div(
+            [empty_card],
+            style={
+                "display": "grid",
+                "gridTemplateColumns": "repeat(3, minmax(320px, 1fr))",
+                "gap": "12px",
+            },
+        )
+        return px.bar(), radar_grid
 
     bar_groups = sub_types
     radar_groups = sub_types

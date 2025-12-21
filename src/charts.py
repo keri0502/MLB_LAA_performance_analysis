@@ -155,6 +155,11 @@ def plot_contribution_salary_scatter(player_type: Literal["batter", "pitcher"], 
     """
     畫選手貢獻和薪資的散布圖
     """
+    op_map = {
+        "batter": operator.ge,  # >=
+        "pitcher": operator.le  # <=
+    }
+    op = op_map[player_type]
     y_axis = get_metric_name(player_type=player_type)
     # 取資料
     players = get_players(
@@ -168,10 +173,10 @@ def plot_contribution_salary_scatter(player_type: Literal["batter", "pitcher"], 
     median_performance = 100
     
     # 定義四象限
-    high_sal_high_perf = (players['salary'] >= salary_median) & (players[y_axis] >= median_performance)
-    high_sal_low_perf = (players['salary'] >= salary_median) & (players[y_axis] < median_performance)
-    low_sal_high_perf = (players['salary'] < salary_median) & (players[y_axis] >= median_performance)
-    low_sal_low_perf = (players['salary'] < salary_median) & (players[y_axis] < median_performance)
+    high_sal_high_perf = (players['salary'] >= salary_median) & (op(players[y_axis], median_performance))
+    high_sal_low_perf = (players['salary'] >= salary_median) & (~op(players[y_axis], median_performance))
+    low_sal_high_perf = (players['salary'] < salary_median) & (op(players[y_axis], median_performance))
+    low_sal_low_perf = (players['salary'] < salary_median) & (~op(players[y_axis], median_performance))
     
     players.loc[high_sal_high_perf, 'quadrant'] = 'Star Players'
     players.loc[high_sal_low_perf, 'quadrant'] = 'Overpaid'
@@ -755,3 +760,18 @@ def get_team_record(team_id: str) -> dict:
         "L": int(row["L"]) if row["L"] is not None else None,
         "Rank": int(row["Rank"]) if row["Rank"] is not None else None,
     }
+
+
+def empty_radar_figure() -> go.Figure:
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Scatterpolar(
+            r=[0, 0, 0, 0, 0],
+            theta=["", "", "", "", ""],
+            fill="toself",
+            name=""
+        )
+    )
+
+    return fig
